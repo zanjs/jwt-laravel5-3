@@ -15,7 +15,7 @@ laravel new jwt-laravel5-3
 composer require tymon/jwt-auth
 ```
 
-之后打开 `config/app.ph` p文件添加 `service`  `provider` 和  `aliase`
+之后打开 `config/app.php` 文件添加 `service`  `provider` 和  `aliase`
 
 
 config/app.php
@@ -79,7 +79,7 @@ return $response;
 
 在 `app/Http/Kernel.php` 注册中间件
 
-```
+```php
 namespace App\Http;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 class Kernel extends HttpKernel
@@ -98,7 +98,7 @@ class Kernel extends HttpKernel
 
 `routes/web.php` 
 
-```
+```php
 Route::group(['middleware' => ['api','cors'],'prefix' => 'api'], function () {
     Route::post('register', 'ApiController@register');     // 注册
     Route::post('login', 'ApiController@login');           // 登陆
@@ -120,7 +120,7 @@ php artisan make:middleware authJWT
 
 app/Http/Middleware/authJWT.php
 
-```
+```php
 namespace App\Http\Middleware;
 
 use Closure;
@@ -161,7 +161,7 @@ class authJWT
 
 app/Http/Kernel.php
 
-```
+```php
 namespace App\Http;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 class Kernel extends HttpKernel
@@ -185,7 +185,7 @@ php artisan make:controller Apicontroller
 
 编辑: app/Http/Controllers/ApiController.php
 
-```
+```php
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
