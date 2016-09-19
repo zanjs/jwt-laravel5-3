@@ -3,7 +3,7 @@
 
 ## 通过 Laravel 安装工具
 
-```
+```s
 composer global require "laravel/installer"
 
 laravel new jwt-laravel5-3
@@ -11,7 +11,7 @@ laravel new jwt-laravel5-3
 
 ## 安装  JWT 扩展
 
-```
+```s
 composer require tymon/jwt-auth
 ```
 
@@ -20,7 +20,7 @@ composer require tymon/jwt-auth
 
 config/app.php
 
-```
+```php
 'providers' => [
     ....
     Tymon\JWTAuth\Providers\JWTAuthServiceProvider::class,
