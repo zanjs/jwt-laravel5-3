@@ -1,26 +1,248 @@
-# Laravel PHP Framework
+# Laravel 5.3 jwt
 
-[![Build Status](https://travis-ci.org/laravel/framework.svg)](https://travis-ci.org/laravel/framework)
-[![Total Downloads](https://poser.pugx.org/laravel/framework/d/total.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Stable Version](https://poser.pugx.org/laravel/framework/v/stable.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Unstable Version](https://poser.pugx.org/laravel/framework/v/unstable.svg)](https://packagist.org/packages/laravel/framework)
-[![License](https://poser.pugx.org/laravel/framework/license.svg)](https://packagist.org/packages/laravel/framework)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable, creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as authentication, routing, sessions, queueing, and caching.
+## 通过 Laravel 安装工具
 
-Laravel is accessible, yet powerful, providing tools needed for large, robust applications. A superb inversion of control container, expressive migration system, and tightly integrated unit testing support give you the tools you need to build any application with which you are tasked.
+```
+composer global require "laravel/installer"
 
-## Official Documentation
+laravel new jwt-laravel5-3
+```
 
-Documentation for the framework can be found on the [Laravel website](http://laravel.com/docs).
+## 安装  JWT 扩展
 
-## Contributing
+```
+composer require tymon/jwt-auth
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](http://laravel.com/docs/contributions).
+之后打开 `config/app.ph` p文件添加 `service`  `provider` 和  `aliase`
 
-## Security Vulnerabilities
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell at taylor@laravel.com. All security vulnerabilities will be promptly addressed.
+config/app.php
+
+```
+'providers' => [
+    ....
+    Tymon\JWTAuth\Providers\JWTAuthServiceProvider::class,
+],
+'aliases' => [
+    ....
+    'JWTAuth' => Tymon\JWTAuth\Facades\JWTAuth::class
+],
+```
+
+
+OK，现在来发布 `JWT` 的配置文件，比如令牌到期时间配置等
+
+```
+php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\JWTAuthServiceProvider"
+```
+
+最后一步需要生成 `JWT Key`
+
+```
+php artisan jwt:generate
+```
+
+##  创建API路由
+
+### 创建中间件 `cors`
+
+```
+php artisan make:middleware CORS
+```
+
+进入 `app/Http/Middleware` ，编辑 `CORS.php`
+
+
+`handle` 内容
+
+```php
+// return $next($request);
+header('Access-Control-Allow-Origin: *');
+
+$headers = [
+    'Access-Control-Allow-Methods'=> 'POST, GET, OPTIONS, PUT, DELETE',
+    'Access-Control-Allow-Headers'=> 'Content-Type, X-Auth-Token, Origin'
+];
+
+if($request->getMethod() == "OPTIONS") {
+    return Response::make('OK', 200, $headers);
+};
+
+$response = $next($request);
+foreach($headers as $key => $value)
+    $response->header($key, $value);
+return $response;
+```
+
+
+在 `app/Http/Kernel.php` 注册中间件
+
+```
+namespace App\Http;
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
+class Kernel extends HttpKernel
+{
+    ...
+    ...
+    protected $routeMiddleware = [
+        ...
+        'cors' => \App\Http\Middleware\CORS::class,
+    ];
+}
+```
+
+有了这个中间件我们就解决了跨域问题。接下来回到路由
+
+
+`routes/web.php` 
+
+```
+Route::group(['middleware' => ['api','cors'],'prefix' => 'api'], function () {
+    Route::post('register', 'ApiController@register');     // 注册
+    Route::post('login', 'ApiController@login');           // 登陆
+    Route::group(['middleware' => 'jwt.auth'], function () {
+        Route::post('get_user_details', 'APIController@get_user_details');  // 获取用户详情
+    });
+})
+```
+
+建议：过滤掉路由 `api/*` 下的 `csrf_token` ，方便测试开发
+
+上面的 `jwt-auth` 中间件现在还是无效的，接着创建这个 `middleware`
+
+```
+php artisan make:middleware authJWT
+```
+
+编辑这个 `authJWT.php`
+
+app/Http/Middleware/authJWT.php
+
+```
+namespace App\Http\Middleware;
+
+use Closure;
+use Tymon\JWTAuth\Facades\JWTAuth;
+use Exception;
+class authJWT
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle($request, Closure $next)
+    {
+        
+        try {
+            // 如果用户登陆后的所有请求没有jwt的token抛出异常
+            $user = JWTAuth::toUser($request->input('token')); 
+        } catch (Exception $e) {
+            if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenInvalidException){
+                return response()->json(['error'=>'Token 无效']);
+            }else if ($e instanceof \Tymon\JWTAuth\Exceptions\TokenExpiredException){
+                return response()->json(['error'=>'Token 已过期']);
+            }else{
+                return response()->json(['error'=>'出错了']);
+            }
+        }
+        return $next($request);
+    }
+}
+
+```
+
+
+接着注册该中间件
+
+app/Http/Kernel.php
+
+```
+namespace App\Http;
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
+class Kernel extends HttpKernel
+{
+    ...
+    ...
+    protected $routeMiddleware = [
+        ...
+        'jwt.auth' => \App\Http\Middleware\authJWT::class,
+    ];
+}
+```
+
+
+然后，我们创建控制器管理所有的请求
+
+
+```
+php artisan make:controller Apicontroller
+```
+
+编辑: app/Http/Controllers/ApiController.php
+
+```
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests;
+
+use App\User;
+use Illuminate\Support\Facades\Hash;
+use Tymon\JWTAuth\Facades\JWTAuth;
+
+class Apicontroller extends Controller
+{   
+    // 注册
+    public function register(Request $requset)
+    {
+        $input = $requset->all();
+        $input['password'] = Hash::make($input['password']);
+        User::create($input);
+        return response()->json(['result'=>true]);
+    }
+
+    // 登陆
+    public function login(Request $request)
+    {
+        $input = $request->all();
+        if (!$token = JWTAuth::attempt($input)) {
+            return response()->json(['result' => '邮箱或密码错误.']);
+        }
+        return response()->json(['result' => $token]);
+    }
+
+    // 获取用户信息
+    public function get_user_details(Request $request)
+    {
+        $input = $request->all();
+        $user = JWTAuth::toUser($input['token']);
+        return response()->json(['result' => $user]);
+    }
+}
+
+```
+
+`users` 数据库迁移 
+```
+php artisan migrate
+```
+
+到此,编码完成，下面就测试一下吧！
+
+为了方便开发 编辑 `package.json`
+
+`scripts` 加入如下 
+```
+"web": "php artisan serve --host=0.0.0.0  --port=8000",
+```
+
+执行 `npm run web` 浏览器打开网页 
 
 ## License
 
