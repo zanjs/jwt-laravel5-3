@@ -244,6 +244,76 @@ php artisan migrate
 
 执行 `npm run web` 浏览器打开网页 
 
+
+编辑 `welcome.blade.php`
+
+```
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>larave jwt demo</title>
+    <script src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+</head>
+
+<body>
+
+</body>
+<script>
+    window.onload = function() {
+        login();
+    }
+    window.authAoken = "";
+    function login() {
+        $.ajax({
+            url: "/api/login",
+            dataType: "json",
+            type: "POST",
+            data: {"email":"20@qq.com","password":"123456"},
+            success: function(data) {
+                console.log(data.result);
+                window.authAoken = data.result;
+            }
+
+        });
+    }
+    function register(){
+        var json = {"name":"zan","email":"20@qq.com","password":"123456"};
+        $.ajax({
+            url: "/api/register",
+            dataType: "json",
+            type: "POST",
+            data: json,
+            success: function(data) {
+                 console.log(data.result)
+            }
+
+        });
+
+    }
+
+    function getInfo(){
+        var json = {"token":"20@qq.com","name":"zan"};
+        json.token = window.authAoken;
+        $.ajax({
+            url: "/api/get_user_details",
+            dataType: "json",
+            type: "POST",
+            data: json,
+            success: function(data) {
+                console.log(data.result)
+            }
+
+        });
+    }
+</script>
+
+</html>
+```
+
+到此 jwt 基础完成
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
