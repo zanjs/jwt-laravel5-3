@@ -1,5 +1,7 @@
 # Laravel 5.3 jwt
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/zanjs/jwt-laravel5-3.svg)](https://greenkeeper.io/)
+
 
 ## 通过 Laravel 安装工具
 
